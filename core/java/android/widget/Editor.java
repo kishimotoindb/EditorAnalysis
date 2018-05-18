@@ -173,6 +173,12 @@ public class Editor {
     private InsertionPointCursorController mInsertionPointCursorController;
     SelectionModifierCursorController mSelectionModifierCursorController;
     // Action mode used when text is selected or when actions on an insertion cursor are triggered.
+    /*
+     * 1.text is selected：文字被选中的时候，一定会有弹框
+     * 2.actions on an insertion cursor are triggered：双击的时候，cursor上也会有一个弹框
+     * 3.insertion cursor出现的时候，不一定有popupWindow弹出
+     * 所以说只有在popUpWindow展示出来的时候，才会有ActionMode。并不是cursor出现了，ActionMode就不为空。
+     */
     private ActionMode mTextActionMode;
     private boolean mInsertionControllerEnabled;
     private boolean mSelectionControllerEnabled;
@@ -1391,6 +1397,8 @@ public class Editor {
         }
     }
 
+    // 移动手指的时候，隐藏popupWindow
+    // 抬起手指或者cancel事件的时候，展示popupWindow
     private void updateFloatingToolbarVisibility(MotionEvent event) {
         if (mTextActionMode != null) {
             switch (event.getActionMasked()) {
