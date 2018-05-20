@@ -1299,7 +1299,7 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int BUTTON_SECONDARY = 1 << 1;
 
     /**
-     * Button constant: Tertiary button (middle mouse button).
+     * Button constant: Tertiary（第三） button (middle mouse button).
      *
      * @see #getButtonState
      */

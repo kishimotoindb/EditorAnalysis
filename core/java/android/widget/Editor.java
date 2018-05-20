@@ -1363,6 +1363,7 @@ public class Editor {
     void onTouchEvent(MotionEvent event) {
         // 这里可以直接当成false，因为只有eventSource是mouse的情况下
         final boolean filterOutEvent = shouldFilterOutTouchEvent(event);
+        // ButtonState是针对鼠标的，所以触摸的情况下就不需要考虑这个字段
         mLastButtonState = event.getButtonState();
         // 鉴于上面的情况，这里不用考虑
         if (filterOutEvent) {
@@ -1371,14 +1372,38 @@ public class Editor {
             }
             return;
         }
-        // 更新Editor自己的tap状态，不做具体操作，只是更新tapState这个变量的状态
+        // 更新Editor自己的tap状态，不做具体操作，只是更新、记录tapState这个变量的状态
+        // tap分为两种 doubleTap,TripleTap,后者只针对鼠标才有。
         updateTapState(event);
+        // 移动手指的时候，如果popupWindow已经显示，那么隐藏popupWindow
+        // 抬起手指或者cancel事件的时候，展示popupWindow
+        // floatingToolbar指的就是SuggestionPopupWindow和ActionPopupWindow
+        // EditText的弹框，其实本质都是Editor触发和操作的，TextView其实啥也没做，只是展示文字
         updateFloatingToolbarVisibility(event);
 
+        /*
+         * TextActionMode!=null,说明现在text view，要么是有个文字被选中，弹出了复制弹框；
+         * 要么是insertionCursor可见，doubleTap的弹框弹出。其它时候，TextActionMode都是空的。
+         *
+         * 问题：
+         * 那么controller是一直不为空，还是和ActionMode是一样的？
+         *
+         *
+         *
+         *
+         * Editor对弹框的控制，感觉主要依靠SelectionController和insertionController。
+         *
+         * 问题：
+         * 这两个controller各自负责的哪个光标？
+         * Selection负责的是选择文字两端的一对光标？
+         * insertion负责的是在文字中间一直闪烁的光标，还是展示一会儿就会消失的底部带实心圆的光标？
+         *
+         */
         if (hasSelectionController()) {
             getSelectionController().onTouchEvent(event);
         }
 
+        // 只要有新的事件到来，就不显示SuggestionPopupWindow
         if (mShowSuggestionRunnable != null) {
             mTextView.removeCallbacks(mShowSuggestionRunnable);
             mShowSuggestionRunnable = null;
@@ -1400,6 +1425,9 @@ public class Editor {
     // 移动手指的时候，隐藏popupWindow
     // 抬起手指或者cancel事件的时候，展示popupWindow
     private void updateFloatingToolbarVisibility(MotionEvent event) {
+        // TextActionMode!=null,说明现在text view，要么是有个文字被选中，弹出了复制弹框；
+        // 要么是insertionCursor可见，doubleTap的弹框弹出。
+        // 所以这里处理的是有popupWindow的情况下，隐藏和恢复显示的问题。
         if (mTextActionMode != null) {
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_MOVE:
