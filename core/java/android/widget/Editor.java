@@ -3065,6 +3065,8 @@ public class Editor {
         private static final int MAXIMUM_NUMBER_OF_LISTENERS = 7;
         private TextViewPositionListener[] mPositionListeners =
                 new TextViewPositionListener[MAXIMUM_NUMBER_OF_LISTENERS];
+
+        // canMove应该是指cursor是否会移动，待确定？
         private boolean[] mCanMove = new boolean[MAXIMUM_NUMBER_OF_LISTENERS];
         // 相对于window的坐标是否改变了，注意是window，而非screen。
         private boolean mPositionHasChanged = true;
@@ -3169,10 +3171,11 @@ public class Editor {
         }
     }
 
+    // TextView所有弹框的父类
     private abstract class PinnedPopupWindow implements TextViewPositionListener {
         protected PopupWindow mPopupWindow;
         protected ViewGroup mContentView;
-        int mPositionX, mPositionY;
+        int mPositionX, mPositionY; // 相对于TextView的坐标
         int mClippingLimitLeft, mClippingLimitRight;
 
         protected abstract void createPopupWindow();
@@ -3207,15 +3210,25 @@ public class Editor {
         }
 
         public void show() {
+            /*
+             * 这里注册的listener，是用于监听textView的位置变化。如果在当前popupWindow显示以后，
+             * TextView的位置发生了变化，那么通过这个listener来更新popupWindow的位置。所以虽然
+             * 在监听器的实现里，包括了mPopupWindow.showAtLocation()这样的语句，但是这个监听器
+             * 的主要目的并不是用来弹出popupWindow，而是更新已显示popupWindow的位置。
+             *
+             */
             getPositionListener().addSubscriber(this, false /* offset is fixed */);
 
+            // 计算popupWindow需要固定的位置，也就是这个类的mPositionX和mPositionY
             computeLocalPosition();
 
             final PositionListener positionListener = getPositionListener();
             // 同步方法。未显示popupWindow时开启popupWindow；已开启时，更新popupWindow的位置。
+            // pinnedPopupWindow类有两个updatePosition方法，一个是监听器，一个是这里的同步方法。
             updatePosition(positionListener.getPositionX(), positionListener.getPositionY());
         }
 
+        // popupWindow的最大尺寸就是屏幕的尺寸
         protected void measureContent() {
             final DisplayMetrics displayMetrics = mTextView.getResources().getDisplayMetrics();
             mContentView.measure(
@@ -3228,7 +3241,11 @@ public class Editor {
         /* The popup window will be horizontally centered on the getTextOffset() and vertically
          * positioned according to viewportToContentHorizontalOffset.
          *
-         * This method assumes that mContentView has properly been measured from its content. */
+         * This method assumes that mContentView has properly been measured from its content.
+         *
+         *
+         * 计算popupWindow需要固定的位置
+         */
         private void computeLocalPosition() {
             measureContent();
             final int width = mContentView.getMeasuredWidth();
@@ -3242,7 +3259,7 @@ public class Editor {
         }
 
         private void updatePosition(int parentPositionX, int parentPositionY) {
-            int positionX = parentPositionX + mPositionX;
+            int positionX = parentPositionX/*TextView的坐标*/ + mPositionX;
             int positionY = parentPositionY + mPositionY;
 
             positionY = clipVertically(positionY);
