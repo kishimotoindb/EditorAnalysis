@@ -1388,15 +1388,23 @@ public class Editor {
          * 问题：
          * 那么controller是一直不为空，还是和ActionMode是一样的？
          *
-         *
-         *
-         *
+         * -------------------------------------------------------------------------------
          * Editor对弹框的控制，感觉主要依靠SelectionController和insertionController。
+         *
+         * -------------------------------------------------------------------------------
          *
          * 问题：
          * 这两个controller各自负责的哪个光标？
          * Selection负责的是选择文字两端的一对光标？
          * insertion负责的是在文字中间一直闪烁的光标，还是展示一会儿就会消失的底部带实心圆的光标？
+         *
+         *
+         *
+         * -------------------------------------------------------------------------------
+         * onTouchEvent方法中，只涉及到了SelectionController。在performLongClick中，涉及到了
+         * insertionController。
+         *
+         *
          *
          */
         if (hasSelectionController()) {
@@ -3048,6 +3056,8 @@ public class Editor {
         }
     }
 
+    // 监听当前TextView的位置（左上角的坐标），在TextView每次绘制之前，更新一下这个类里保存的TextView
+    // 坐标。然后当位置发生变化时，触发listener。
     private class PositionListener implements ViewTreeObserver.OnPreDrawListener {
         // 3 handles
         // 3 ActionPopup [replace, suggestion, easyedit] (suggestionsPopup first hides the others)
@@ -3056,9 +3066,12 @@ public class Editor {
         private TextViewPositionListener[] mPositionListeners =
                 new TextViewPositionListener[MAXIMUM_NUMBER_OF_LISTENERS];
         private boolean[] mCanMove = new boolean[MAXIMUM_NUMBER_OF_LISTENERS];
+        // 相对于window的坐标是否改变了，注意是window，而非screen。
         private boolean mPositionHasChanged = true;
         // Absolute position of the TextView with respect to its parent window
+        // 相对于所在window的坐标
         private int mPositionX, mPositionY;
+        // 相对于屏幕的坐标
         private int mPositionXOnScreen, mPositionYOnScreen;
         private int mNumberOfListeners;
         private boolean mScrollHasChanged;
@@ -3117,6 +3130,7 @@ public class Editor {
             return mPositionYOnScreen;
         }
 
+        // 核心方法
         @Override
         public boolean onPreDraw() {
             updatePosition();
@@ -3135,6 +3149,7 @@ public class Editor {
             return true;
         }
 
+        // 核心方法
         private void updatePosition() {
             mTextView.getLocationInWindow(mTempCoords);
 
@@ -3197,6 +3212,7 @@ public class Editor {
             computeLocalPosition();
 
             final PositionListener positionListener = getPositionListener();
+            // 同步方法。未显示popupWindow时开启popupWindow；已开启时，更新popupWindow的位置。
             updatePosition(positionListener.getPositionX(), positionListener.getPositionY());
         }
 
@@ -3258,7 +3274,7 @@ public class Editor {
         public void updatePosition(int parentPositionX, int parentPositionY,
                 boolean parentPositionChanged, boolean parentScrolled) {
             // Either parentPositionChanged or parentScrolled is true, check if still visible
-            if (isShowing() && isOffsetVisible(getTextOffset())) {
+            if (isShowing() && Visible(getTextOffset())) {
                 if (parentScrolled) computeLocalPosition();
                 updatePosition(parentPositionX, parentPositionY);
             } else {
