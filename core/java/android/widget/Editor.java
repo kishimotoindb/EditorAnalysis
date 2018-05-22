@@ -2039,6 +2039,7 @@ public class Editor {
         if (extractedTextModeWillBeStarted()) {
             return;
         }
+        // 隐藏selectionController
         stopTextActionMode();
 
         ActionMode.Callback actionModeCallback =
@@ -3847,6 +3848,8 @@ public class Editor {
         private final boolean mHasSelection;
         private final int mHandleHeight;
 
+        // hasSelection：有selected的文字，应该展示selectionController的两个handleView，没有selected的文字，
+        // 应该展示insertionController的handleView
         public TextActionModeCallback(boolean hasSelection) {
             mHasSelection = hasSelection;
             if (mHasSelection) {
@@ -3854,6 +3857,7 @@ public class Editor {
                 if (selectionController.mStartHandle == null) {
                     // As these are for initializing selectionController, hide() must be called.
                     selectionController.initDrawables();
+                    // initHandles()不但初始化了两个HandleView，而且调用了show()方法
                     selectionController.initHandles();
                     selectionController.hide();
                 }
@@ -3863,6 +3867,7 @@ public class Editor {
             } else {
                 InsertionPointCursorController insertionController = getInsertionController();
                 if (insertionController != null) {
+                    // getHandle()方法执行了相当于initDrawable和initHandle两步的操作
                     insertionController.getHandle();
                     mHandleHeight = mSelectHandleCenter.getMinimumHeight();
                 } else {

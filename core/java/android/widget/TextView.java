@@ -9685,6 +9685,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
              * 问题：
              *
              * 1）既然是全程并行的，看看它全程都做了什么？
+             * 最主要的可能就是调用了SelectionController的onTouchEvent()
              */
             mEditor.onTouchEvent(event);
 
@@ -9724,7 +9725,13 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
          * 问题：
          *
          * 1.insertionMode和selectionMode具体各自控制哪种光标？
+         * insertionMode控制的是底部有实心圆的单一光标，selectionMode控制的是选中文字两端的两个光标
          * 2.一直闪烁的光标是谁控制的？
+         * 一直闪烁的光标和ActionMode可能没有关系
+         *
+         * -----------------------------------------------------------------------------------------
+         * mDiscardNextActionUp这个变量正常情况下只出现在SelectionModifierCursorController的onTouchEvent
+         * 方法中，所以还是要看这个方法，才知道这个变量和insertion的关系。说明select还是影响insert的。
          */
         if (mEditor != null && mEditor.mDiscardNextActionUp && action == MotionEvent.ACTION_UP) {
             mEditor.mDiscardNextActionUp = false;
@@ -9791,7 +9798,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
              *
              * 2.光标错位如果是因为键盘实际没弹起来，但是计算光标位置的时候计算了键盘高度，需要这个计算过程
              *   是在哪里完成的？但感觉应该不是，因为cursor的位置是直接通过TextView的字符位置计算的，有可能
-             *   就是最后计算的位置是对的，但是没有刷新
+             *   就是最后计算的位置是对的，但是没有刷新。目前来看问题应该不是没有刷新位置，而是位置计算的有问题。
              */
             if (touchIsFinished && (isTextEditable() || textIsSelectable)) {
                 // Show the IME, except when selecting in read-only text.
