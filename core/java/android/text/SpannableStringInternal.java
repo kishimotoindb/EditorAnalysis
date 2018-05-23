@@ -496,6 +496,7 @@ import java.lang.reflect.Array;
 
     private String mText;
     private Object[] mSpans;
+    // 存储每个span的开始位置、结束位置、flag，每个span对应三个数据
     private int[] mSpanData;
     private int mSpanCount;
 

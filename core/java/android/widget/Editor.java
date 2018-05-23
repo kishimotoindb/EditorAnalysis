@@ -3176,7 +3176,9 @@ public class Editor {
     private abstract class PinnedPopupWindow implements TextViewPositionListener {
         protected PopupWindow mPopupWindow;
         protected ViewGroup mContentView;
-        int mPositionX, mPositionY; // 相对于TextView的坐标
+        // 当前popupWindow相对于TextView的坐标。注意，这里的positionX与positionListener里的positionX不是
+        // 一回事儿，这里的是popupWindow要展示的位置，positionListener里的是TextView的位置。
+        int mPositionX, mPositionY;
         int mClippingLimitLeft, mClippingLimitRight;
 
         protected abstract void createPopupWindow();
@@ -3245,12 +3247,16 @@ public class Editor {
          * This method assumes that mContentView has properly been measured from its content.
          *
          *
-         * 计算popupWindow需要固定的位置
+         * 计算popupWindow需要固定的位置（这个位置是相对于TextView的，所以后面的updatePosition方法里需要
+         * 加上TextView的位置）
          */
         private void computeLocalPosition() {
+            // 给一个屏幕的宽高限制，计算popupWindow的大小
             measureContent();
             final int width = mContentView.getMeasuredWidth();
-            final int offset = getTextOffset();
+            final int offset = getTextOffset(); //当前选中文字的中间位置的字符偏移量
+            //                                     相当于将popupWindow的中心移动到selection的位置
+            //                                 selection的位置           -         popupWindow的一半宽度
             mPositionX = (int) (mTextView.getLayout().getPrimaryHorizontal(offset) - width / 2.0f);
             mPositionX += mTextView.viewportToContentHorizontalOffset();
 
