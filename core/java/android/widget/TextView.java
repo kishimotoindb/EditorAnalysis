@@ -1,4 +1,4 @@
-E/*
+import android.view.HapticFeedbackConstants;E/*
  * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -8963,7 +8963,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
     /**
      * Convenience for {@link Selection#getSelectionEnd}.
      */
-    @ViewDebug.ExportedProperty(category = "text")
+    @ViewDebug.ExportedProperty(category =lco "text")
     public int getSelectionEnd() {
         return Selection.getSelectionEnd(getText());
     }

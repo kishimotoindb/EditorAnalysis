@@ -12520,6 +12520,9 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      *
      * @param menu The context menu to populate
      */
+    /*
+     * 从触发longclick的view开始至DecorView，依次调用onCreateContextMenu()，以便一路填充menu。
+     */
     public void createContextMenu(ContextMenu menu) {
         ContextMenuInfo menuInfo = getContextMenuInfo();
 

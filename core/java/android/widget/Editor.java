@@ -628,6 +628,10 @@ public class Editor {
         return mCursorVisible && mTextView.isTextEditable();
     }
 
+    /*
+     * 主要是设置 mInsertionControllerEnabled 和 mSelectionControllerEnabled，如果enable=false，
+     * 关闭相应的cursor
+     */
     void prepareCursorControllers() {
         boolean windowSupportsHandles = false;
 
@@ -820,6 +824,7 @@ public class Editor {
     }
 
     private boolean needsToSelectAllToSelectWordOrParagraph() {
+        // 只要与密码相关就全选
         if (mTextView.hasPasswordTransformationMethod()) {
             // Always select all on a password field.
             // Cut/copy menu entries are not available for passwords, but being able to select all
@@ -847,6 +852,11 @@ public class Editor {
     /**
      * Adjusts selection to the word under last touch offset. Return true if the operation was
      * successfully performed.
+     */
+    /*
+     * 1.全选
+     * 2.选中第一个URL
+     * 3.选中一个单词
      */
     boolean selectCurrentWord() {
         if (!mTextView.canSelectText()) {
@@ -2105,16 +2115,30 @@ public class Editor {
         if (mInsertionActionModeRunnable != null) {
             mTextView.removeCallbacks(mInsertionActionModeRunnable);
         }
+        // 感觉这一直会是false
         if (extractedTextModeWillBeStarted()) {
             return false;
         }
         if (!checkField()) {
             return false;
         }
+        /*
+         * selectcurrentword-> setSelection()
+         */
         if (!mTextView.hasSelection() && !selectCurrentWord()) {
             // No selection and cannot select a word.
             return false;
         }
+        /*
+         * restartActionModeOnNextRefresh=true;
+         * preserve selection
+         */
+        /*
+         * 1.CursorController可能只与Cursor进行交互，不控制ActionMode，ActionMode与
+         *   Cursor的控制是并行的，但是又是独立各自控制各自的。
+         * 2.ActionMode控制的是ActionMode.Callback和FloatToolBar(弹框)
+         * 3.Selection控制Selection
+         */
         stopTextActionModeWithPreservingSelection();
         getSelectionController().enterDrag(
                 SelectionModifierCursorController.DRAG_ACCELERATOR_MODE_WORD);
@@ -3072,9 +3096,9 @@ public class Editor {
         // 相对于window的坐标是否改变了，注意是window，而非screen。
         private boolean mPositionHasChanged = true;
         // Absolute position of the TextView with respect to its parent window
-        // 相对于所在window的坐标
+        // TextView相对于window的坐标
         private int mPositionX, mPositionY;
-        // 相对于屏幕的坐标
+        // TextView相对于屏幕的坐标。分屏，Dialog，window就比Screen要小
         private int mPositionXOnScreen, mPositionYOnScreen;
         private int mNumberOfListeners;
         private boolean mScrollHasChanged;
@@ -3087,6 +3111,7 @@ public class Editor {
                 vto.addOnPreDrawListener(this);
             }
 
+            // 这个算法有可能在Listeners[]中重复加入同一个listener
             int emptySlotIndex = -1;
             for (int i = 0; i < MAXIMUM_NUMBER_OF_LISTENERS; i++) {
                 TextViewPositionListener listener = mPositionListeners[i];
@@ -4322,6 +4347,7 @@ public class Editor {
             mHorizontalGravity = getHorizontalGravity(isRtlCharAtOffset);
             if (oldDrawable != mDrawable && isShowing()) {
                 // Update popup window position.
+                // 光标的位置
                 mPositionX = getCursorHorizontalPosition(layout, offset) - mHotspotX
                         - getHorizontalOffset() + getCursorOffset();
                 mPositionX += mTextView.viewportToContentHorizontalOffset();
@@ -4386,7 +4412,7 @@ public class Editor {
             if (isShowing()) {
                 positionAtCursorOffset(getCurrentCursorOffset(), true);
             }
-        };
+        }
 
         private int getPreferredWidth() {
             return Math.max(mDrawable.getIntrinsicWidth(), mMinSize);
@@ -4459,6 +4485,9 @@ public class Editor {
          * @param offset Cursor offset. Must be in [-1, length].
          * @param forceUpdatePosition whether to force update the position.  This should be true
          * when If the parent has been scrolled, for example.
+         */
+        /*
+         * 更新Selection和popUpWindow的坐标
          */
         protected void positionAtCursorOffset(int offset, boolean forceUpdatePosition) {
             // A HandleView relies on the layout, which may be nulled by external methods
@@ -5384,9 +5413,17 @@ public class Editor {
             mStartHandle.show();
             mEndHandle.show();
 
+            /*
+             * 只做cursor.hide()，不涉及ActionMode和弹框。停止ActionMode的逻辑是在cursorController外
+             * 调用的。
+             */
             hideInsertionPointCursorController();
         }
 
+        /*
+         * 和InsertionPointCursorController.hide()方法一样，只对cursor作处理，只关闭cursor，不涉及
+         * 对ActionMode和弹框的操作。
+         */
         public void hide() {
             if (mStartHandle != null) mStartHandle.hide();
             if (mEndHandle != null) mEndHandle.hide();
@@ -5395,6 +5432,10 @@ public class Editor {
         public void enterDrag(int dragAcceleratorMode) {
             // Just need to init the handles / hide insertion cursor.
             show();
+            /*
+             * 1.setCurrentWordAndStartDrag:
+             * dragAcceleratorMode=Drag_Accelerator_mode_word
+             */
             mDragAcceleratorMode = dragAcceleratorMode;
             // Start location of selection.
             mStartOffset = mTextView.getOffsetForPosition(mLastDownPositionX,
@@ -5647,6 +5688,7 @@ public class Editor {
         /**
          * @param event
          */
+        // 获取所有手指在TextView上的边界
         private void updateMinAndMaxOffsets(MotionEvent event) {
             int pointerCount = event.getPointerCount();
             for (int index = 0; index < pointerCount; index++) {
