@@ -246,7 +246,7 @@ public class Editor {
     private boolean mPreserveSelection;
     private boolean mRestartActionModeOnNextRefresh;
 
-    private SelectionActionModeHelper mSelectionActionModeHelper;
+    private android.widget.SelectionActionModeHelper mSelectionActionModeHelper;
 
     boolean mIsBeingLongClicked;
 
@@ -292,7 +292,7 @@ public class Editor {
     private SpanController mSpanController;
 
     private WordIterator mWordIterator;
-    SpellChecker mSpellChecker;
+    android.widget.SpellChecker mSpellChecker;
 
     // This word iterator is set with text and used to determine word boundaries
     // when a user is selecting text.
@@ -318,6 +318,18 @@ public class Editor {
         }
     };
 
+    /*
+     * 1. InsertionActionMode是在Editor的performLongClick方法中设置为true，
+     * 然后在TextView的onTouchEvent()方法的Up事件中开启InsertionActionMode。
+     *
+     * 2. SelectionActionMode是在Editor的performLongClick方法中将mRestartActionModeOnNextRefresh
+     * 设置为true，然后在Editor的onTouchEvent()中的SelectionModifierCursorController的
+     * onTouchEvent方法中开启SelectionActionMode。
+     *
+     * 两个模式均是通过View的startActionMode()方法开启ActionMode模式，并且开启ActionMode
+     * 的回调也是使用同一个TextActionModeCallBack。
+     *
+     */
     boolean mIsInsertionActionModeStartPending = false;
 
     private final SuggestionHelper mSuggestionHelper = new SuggestionHelper();
@@ -488,7 +500,7 @@ public class Editor {
             mErrorPopup.setFocusable(false);
             // The user is entering text, so the input method is needed.  We
             // don't want the popup to be displayed on top of it.
-            mErrorPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+            mErrorPopup.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NEEDED);
         }
 
         TextView tv = (TextView) mErrorPopup.getContentView();
@@ -707,7 +719,7 @@ public class Editor {
         if (mTextView.isTextEditable() && mTextView.isSuggestionsEnabled()
                 && !(mTextView.isInExtractedMode())) {
             if (mSpellChecker == null && createSpellChecker) {
-                mSpellChecker = new SpellChecker(mTextView);
+                mSpellChecker = new android.widget.SpellChecker(mTextView);
             }
             if (mSpellChecker != null) {
                 mSpellChecker.spellCheck(start, end);
@@ -761,7 +773,7 @@ public class Editor {
         }
     }
 
-    private void chooseSize(PopupWindow pop, CharSequence text, TextView tv) {
+    private void chooseSize(android.widget.PopupWindow pop, CharSequence text, TextView tv) {
         int wid = tv.getPaddingLeft() + tv.getPaddingRight();
         int ht = tv.getPaddingTop() + tv.getPaddingBottom();
 
@@ -1108,7 +1120,7 @@ public class Editor {
             MetricsLogger.action(
                     mTextView.getContext(),
                     MetricsEvent.TEXT_LONGPRESS,
-                    TextViewMetrics.SUBTYPE_LONG_PRESS_OTHER);
+                    android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_OTHER);
         }
 
         if (!handled && mTextActionMode != null) {
@@ -1117,14 +1129,14 @@ public class Editor {
                 MetricsLogger.action(
                         mTextView.getContext(),
                         MetricsEvent.TEXT_LONGPRESS,
-                        TextViewMetrics.SUBTYPE_LONG_PRESS_DRAG_AND_DROP);
+                        android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_DRAG_AND_DROP);
             } else {
                 stopTextActionMode();
                 selectCurrentWordAndStartDrag();
                 MetricsLogger.action(
                         mTextView.getContext(),
                         MetricsEvent.TEXT_LONGPRESS,
-                        TextViewMetrics.SUBTYPE_LONG_PRESS_SELECTION);
+                        android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_SELECTION);
             }
             handled = true;
         }
@@ -1136,7 +1148,7 @@ public class Editor {
                 MetricsLogger.action(
                         mTextView.getContext(),
                         MetricsEvent.TEXT_LONGPRESS,
-                        TextViewMetrics.SUBTYPE_LONG_PRESS_SELECTION);
+                        android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_SELECTION);
             }
         }
 
@@ -2098,9 +2110,9 @@ public class Editor {
         }
     }
 
-    private SelectionActionModeHelper getSelectionActionModeHelper() {
+    private android.widget.SelectionActionModeHelper getSelectionActionModeHelper() {
         if (mSelectionActionModeHelper == null) {
-            mSelectionActionModeHelper = new SelectionActionModeHelper(this);
+            mSelectionActionModeHelper = new android.widget.SelectionActionModeHelper(this);
         }
         return mSelectionActionModeHelper;
     }
@@ -3009,16 +3021,16 @@ public class Editor {
 
         @Override
         protected void createPopupWindow() {
-            mPopupWindow = new PopupWindow(mTextView.getContext(), null,
+            mPopupWindow = new android.widget.PopupWindow(mTextView.getContext(), null,
                     com.android.internal.R.attr.textSelectHandleWindowStyle);
-            mPopupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+            mPopupWindow.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED);
             mPopupWindow.setClippingEnabled(true);
         }
 
         @Override
         protected void initContentView() {
-            LinearLayout linearLayout = new LinearLayout(mTextView.getContext());
-            linearLayout.setOrientation(LinearLayout.HORIZONTAL);
+            android.widget.LinearLayout linearLayout = new android.widget.LinearLayout(mTextView.getContext());
+            linearLayout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
             mContentView = linearLayout;
             mContentView.setBackgroundResource(
                     com.android.internal.R.drawable.text_edit_side_paste_window);
@@ -3199,7 +3211,7 @@ public class Editor {
 
     // TextView所有弹框的父类
     private abstract class PinnedPopupWindow implements TextViewPositionListener {
-        protected PopupWindow mPopupWindow;
+        protected android.widget.PopupWindow mPopupWindow;
         protected ViewGroup mContentView;
         // 当前popupWindow相对于TextView的坐标。注意，这里的positionX与positionListener里的positionX不是
         // 一回事儿，这里的是popupWindow要展示的位置，positionListener里的是TextView的位置。
@@ -3504,14 +3516,14 @@ public class Editor {
         private TextAppearanceSpan mHighlightSpan;  // TODO: Make mHighlightSpan final.
         private TextView mAddToDictionaryButton;
         private TextView mDeleteButton;
-        private ListView mSuggestionListView;
+        private android.widget.ListView mSuggestionListView;
         private final SuggestionSpanInfo mMisspelledSpanInfo = new SuggestionSpanInfo();
         private int mContainerMarginWidth;
         private int mContainerMarginTop;
-        private LinearLayout mContainerView;
+        private android.widget.LinearLayout mContainerView;
         private Context mContext;  // TODO: Make mContext final.
 
-        private class CustomPopupWindow extends PopupWindow {
+        private class CustomPopupWindow extends android.widget.PopupWindow {
 
             @Override
             public void dismiss() {
@@ -3555,7 +3567,7 @@ public class Editor {
         @Override
         protected void createPopupWindow() {
             mPopupWindow = new CustomPopupWindow();
-            mPopupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+            mPopupWindow.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED);
             mPopupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             mPopupWindow.setFocusable(true);
             mPopupWindow.setClippingEnabled(false);
@@ -3568,7 +3580,7 @@ public class Editor {
             mContentView = (ViewGroup) inflater.inflate(
                     mTextView.mTextEditSuggestionContainerLayout, null);
 
-            mContainerView = (LinearLayout) mContentView.findViewById(
+            mContainerView = (android.widget.LinearLayout) mContentView.findViewById(
                     com.android.internal.R.id.suggestionWindowContainer);
             ViewGroup.MarginLayoutParams lp =
                     (ViewGroup.MarginLayoutParams) mContainerView.getLayoutParams();
@@ -3577,7 +3589,7 @@ public class Editor {
             mClippingLimitLeft = lp.leftMargin;
             mClippingLimitRight = lp.rightMargin;
 
-            mSuggestionListView = (ListView) mContentView.findViewById(
+            mSuggestionListView = (android.widget.ListView) mContentView.findViewById(
                     com.android.internal.R.id.suggestionContainer);
 
             mSuggestionsAdapter = new SuggestionAdapter();
@@ -3657,7 +3669,7 @@ public class Editor {
             mIsShowingUp = false;
         }
 
-        private class SuggestionAdapter extends BaseAdapter {
+        private class SuggestionAdapter extends android.widget.BaseAdapter {
             private LayoutInflater mInflater = (LayoutInflater) mContext.getSystemService(
                     Context.LAYOUT_INFLATER_SERVICE);
 
@@ -4273,7 +4285,7 @@ public class Editor {
         protected Drawable mDrawable;
         protected Drawable mDrawableLtr;
         protected Drawable mDrawableRtl;
-        private final PopupWindow mContainer;
+        private final android.widget.PopupWindow mContainer;
         // Position with respect to the parent TextView
         private int mPositionX, mPositionY;
         private boolean mIsDragging;
@@ -4305,7 +4317,7 @@ public class Editor {
         private HandleView(Drawable drawableLtr, Drawable drawableRtl, final int id) {
             super(mTextView.getContext());
             setId(id);
-            mContainer = new PopupWindow(mTextView.getContext(), null,
+            mContainer = new android.widget.PopupWindow(mTextView.getContext(), null,
                     com.android.internal.R.attr.textSelectHandleWindowStyle);
             mContainer.setSplitTouchEnabled(true);
             mContainer.setClippingEnabled(false);
@@ -5431,6 +5443,8 @@ public class Editor {
 
         public void enterDrag(int dragAcceleratorMode) {
             // Just need to init the handles / hide insertion cursor.
+            // HandleView的show方法，就是注册一个textView的onPreDraw的回调，等待TextView下一次绘制
+            // 的时候显示HandleView
             show();
             /*
              * 1.setCurrentWordAndStartDrag:
@@ -5865,7 +5879,7 @@ public class Editor {
         }
     }
 
-    private static class ErrorPopup extends PopupWindow {
+    private static class ErrorPopup extends android.widget.PopupWindow {
         private boolean mAbove = false;
         private final TextView mView;
         private int mPopupInlineErrorBackgroundId = 0;

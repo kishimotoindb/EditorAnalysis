@@ -58,6 +58,7 @@ public final class FloatingActionMode extends ActionMode {
     @NonNull private final Point mDisplaySize;
     private final int mBottomAllowance;
 
+    // moveOff的意思是，将helper的标志位move设置为false
     private final Runnable mMovingOff = new Runnable() {
         public void run() {
             if (isViewStillActive()) {
@@ -67,6 +68,7 @@ public final class FloatingActionMode extends ActionMode {
         }
     };
 
+    // hideOff的意思是，将helper的标志位hide设置为false
     private final Runnable mHideOff = new Runnable() {
         public void run() {
             if (isViewStillActive()) {
@@ -338,11 +340,19 @@ public final class FloatingActionMode extends ActionMode {
             mWindowFocused = windowFocused;
         }
 
+        // 根据editor的控制要求、cursor的状态、window的状态，这三方面的条件控制toolbar是否可见
         public void updateToolbarVisibility() {
             if (!mActive) {
                 return;
             }
 
+            /*
+             * hideRequested: 请求隐藏toolbar。
+             * moving: cursor在移动，所以隐藏toolbar。
+             * outOfBounds: cursor在TextView的边界外，所以隐藏toolbar。
+             * !windowFocused: textView所在window没有焦点，说明当前焦点在别的window上，所以
+             *                 应该隐藏toolbar。
+             */
             if (mHideRequested || mMoving || mOutOfBounds || !mWindowFocused) {
                 mToolbar.hide();
             } else {

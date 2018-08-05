@@ -72,7 +72,7 @@ import java.util.Objects;
  * A floating toolbar for showing contextual menu items.
  * This view shows as many menu item buttons as can fit in the horizontal toolbar and the
  * the remaining menu items in a vertical overflow view when the overflow button is clicked.
- * The horizontal toolbar morphs into the vertical overflow view.
+ * The horizontal toolbar morphs into(变成) the vertical overflow view.
  */
 public final class FloatingToolbar {
 
@@ -340,7 +340,7 @@ public final class FloatingToolbar {
         private static final int MAX_OVERFLOW_SIZE = 4;
 
         private final Context mContext;
-        private final View mParent;  // Parent for the popup window.
+        private final View mParent;  // Parent for the popup window. // view anchored
         private final PopupWindow mPopupWindow;
 
         /* Margins between the popup window and it's content. */
@@ -350,7 +350,7 @@ public final class FloatingToolbar {
         /* View components */
         private final ViewGroup mContentContainer;  // holds all contents.
         private final ViewGroup mMainPanel;  // holds menu items that are initially displayed.
-        private final OverflowPanel mOverflowPanel;  // holds menu items hidden in the overflow.
+        private final OverflowPanel mOverflowPanel;  // holds menu items hidden in the overflow. extend ListView
         private final ImageButton mOverflowButton;  // opens/closes the overflow.
         /* overflow button drawables. */
         private final Drawable mArrow;

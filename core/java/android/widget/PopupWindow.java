@@ -16,12 +16,6 @@
 
 package android.widget;
 
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
-import static android.view.WindowManager.LayoutParams
-        .PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME;
-import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_WILL_NOT_REPLACE_ON_RELAUNCH;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -61,6 +55,11 @@ import com.android.internal.R;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
+
+import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME;
+import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_WILL_NOT_REPLACE_ON_RELAUNCH;
 
 /**
  * <p>
@@ -2355,7 +2354,7 @@ public class PopupWindow {
         return anchor.getRootView();
     }
 
-    private class PopupDecorView extends FrameLayout {
+    private class PopupDecorView extends android.widget.FrameLayout {
         /** Runnable used to clean up listeners after exit transition. */
         private Runnable mCleanupAfterExit;
 
@@ -2568,7 +2567,7 @@ public class PopupWindow {
         }
     }
 
-    private class PopupBackgroundView extends FrameLayout {
+    private class PopupBackgroundView extends android.widget.FrameLayout {
         public PopupBackgroundView(Context context) {
             super(context);
         }
