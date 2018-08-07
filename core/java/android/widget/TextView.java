@@ -9727,7 +9727,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
          * 1.insertionMode和selectionMode具体各自控制哪种光标？
          * insertionMode控制的是底部有实心圆的单一光标，selectionMode控制的是选中文字两端的两个光标
          * 2.一直闪烁的光标是谁控制的？
-         * 一直闪烁的光标和ActionMode可能没有关系
+         * 一直闪烁的光标和ActionMode没有关系，可以参考makeBlink()方法
          *
          * -----------------------------------------------------------------------------------------
          * mDiscardNextActionUp这个变量正常情况下只出现在SelectionModifierCursorController的onTouchEvent
@@ -9736,6 +9736,8 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
         if (mEditor != null && mEditor.mDiscardNextActionUp && action == MotionEvent.ACTION_UP) {
             mEditor.mDiscardNextActionUp = false;
 
+            // insertionActionMode就是在UP事件时调用了这里的代码开启的。至于mDiscardNextActionUp为什么为true，
+            // 还需要看，debug反正一直是true。
             if (mEditor.mIsInsertionActionModeStartPending) {
                 mEditor.startInsertionActionMode();
                 mEditor.mIsInsertionActionModeStartPending = false;

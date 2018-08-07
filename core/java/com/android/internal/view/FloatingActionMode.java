@@ -58,6 +58,7 @@ public final class FloatingActionMode extends ActionMode {
     @NonNull private final Point mDisplaySize;
     private final int mBottomAllowance;
 
+    // 下面这几个***Off的方法，可以用来隐藏弹框，也可以用来展示弹框。
     // moveOff的意思是，将helper的标志位move设置为false
     private final Runnable mMovingOff = new Runnable() {
         public void run() {
