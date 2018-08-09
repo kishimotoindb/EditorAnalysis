@@ -9694,6 +9694,8 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
              *
              * 2) 这个controller什么时候被赋值，什么时候又被置空？
              * 3) 什么时候这里就开始返回true，TextView的onTouchEvent就不执行了？
+             * 一旦SelectionMode开启了，controller!=null，并且会进入一种AcceleratorMode，所以就不好i再走
+             * 后面的代码。
              */
             if (mEditor.mSelectionModifierCursorController != null
                     // Enabled after long pressing or double tapping. WordBaseDrag
@@ -9717,7 +9719,10 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
          */
         // UP事件到来时，对InsertionController和SelectionController的特殊处理
         //
-        // 这里之所以有个mDiscardNextActionUp==true的判断，估计是历史遗留问题，因为原来的逻辑是长按完成时就
+        // Editor处理了长按事件之后，UP事件就不应该再被TextView处理，而是走Editor自己的一些处理逻辑，所以这里
+        // discard了up事件，不让后面TextView的代码执行。
+        //
+        // （这段话应该是错的）这里之所以有个mDiscardNextActionUp==true的判断，估计是历史遗留问题，因为原来的逻辑是长按完成时就
         // 已经弹出Controller了，所以在onTouchEvent的UP事件来临时就不应该再处理UP事件了。但是8.0改为了在
         // 抬手的时候才展示Controller，所以这里也算是通过mDiscardNextActionUp==true来判断是否需要展示Controller。
         // 但是这里的刷新只针对InsertionController，并不涉及SelectionController
@@ -9808,6 +9813,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
                 viewClicked(imm);
                 if (isTextEditable() && mEditor.mShowSoftInputOnFocus && imm != null) {
                     imm.showSoftInput(this, 0);
+                    imm.isActive()
                 }
 
                 // The above condition ensures that the mEditor is not null

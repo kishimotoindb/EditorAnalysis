@@ -219,7 +219,17 @@ public class Editor {
     KeyListener mKeyListener;
     int mInputType = EditorInfo.TYPE_NULL;
 
+    /*
+     * 在TextView的performLongClick()方法中，如果Editor处理了longClick事件，那么 mDiscardNextActionUp
+     * 就会被置为true。所以说 mDiscardNextActionUp 用在Editor对longClick的处理。
+     * 从语义上来说，是Editor自己处理了UP事件之后就主动丢弃up事件，不让TextView处理。
+     */
     boolean mDiscardNextActionUp;
+    /*
+     * 目前只有TextView的cancelLongPress()方法中被设置为true。
+     * 从语义来说，是指Editor自己无视up事件，至于TextView处理不处理我不管。所以cancelLongPress方法中将该
+     * 变量设置为true，意思就是没有处理长按事件，所以up事件对我来说没有用，textView你该怎么处理怎么处理。
+     */
     boolean mIgnoreActionUpEvent;
 
     long mShowCursor;
@@ -655,7 +665,7 @@ public class Editor {
         }
 
         boolean enabled = windowSupportsHandles && mTextView.getLayout() != null;
-        mInsertionControllerEnabled = enabled && isCursorVisible();
+        mInsertionControllerEnabled = enabled && isCursorVisible(); // text.isTextEditable()
         mSelectionControllerEnabled = enabled && mTextView.textCanBeSelected();
 
         if (!mInsertionControllerEnabled) {
@@ -1397,6 +1407,7 @@ public class Editor {
         // 更新Editor自己的tap状态，不做具体操作，只是更新、记录tapState这个变量的状态
         // tap分为两种 doubleTap,TripleTap,后者只针对鼠标才有。
         updateTapState(event);
+        // 这个方法是在mTextActionMode!=null，即弹框已经弹出的情况下，更新弹框的状态用的，不是用来开启弹框的
         // 移动手指的时候，如果popupWindow已经显示，那么隐藏popupWindow
         // 抬起手指或者cancel事件的时候，展示popupWindow
         // floatingToolbar指的就是SuggestionPopupWindow和ActionPopupWindow
@@ -1411,7 +1422,7 @@ public class Editor {
          * 那么controller是一直不为空，还是和ActionMode是一样的？
          *
          * -------------------------------------------------------------------------------
-         * Editor对弹框的控制，感觉主要依靠SelectionController和insertionController。
+         * Editor对弹框的控制，感觉主要依靠SelectionController和insertionController。(应该是不对的)
          *
          * -------------------------------------------------------------------------------
          *
