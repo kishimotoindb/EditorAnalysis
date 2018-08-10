@@ -9708,7 +9708,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
         }
 
         // 其实View的onTouchEvent只做了两件事，没有长按就执行Click，有长按就执行长按
-        // 在这里的UP事件拿到了焦点
+        // 在View.onTouchEvent()方法中，UP事件的时候View拿到了焦点，即requestfocus()
         // important!!!
         final boolean superResult = super.onTouchEvent(event);
 
@@ -9751,13 +9751,20 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
         }
 
         /*
-         * touchIsFinish应该是针对TextView自己的处理，说明在TextView的onTouchEvent()方法中，从Down事件一直
-         * 执行到了UP事件，没有事件被跳过。感觉touchIsFinish描述的是TextView自身的事件处理是否完整，待定。
+         * （有些错误的理解，不全面）touchIsFinish应该是针对TextView自己的处理，说明TextView处理了从Down事件一直到UP事件，没有事件被
+         * Editor拦截。
+         * （有些错误的理解，不全面）touchIsFinish描述的是TextView自身的事件处理是否完整。
          *
          * 问题：
          *
          * 1.isFocused(),在上面的代码中，如果正常走完了View的onTouchEvent()方法，就可以拿到focus。所以主要是判
          * 断mEditor.mIgnoreActionUpEvent的状态，这个值是怎么控制的？
+         *
+         * 2.mEditor==null，说明这个TextView是不可编辑的，并且not selectable。如果selectable，selection的处理
+         * 也是使用的editor，所以Editor!=null。TextView的selectable就是取值于mEditor.mTextIsSelectable。
+         *
+         * 3.mIgnoreActionUpEvent在Editor处理Down事件的时候会被重置为false，只要没有调用过textView.cancelLongPress()，
+         * 那么就一直是false，到这的话，!mEditor.mIgnoreActionUpEvent就是true。
          *
          */
         final boolean touchIsFinished = (action == MotionEvent.ACTION_UP)
@@ -9794,26 +9801,14 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
                 }
             }
 
-            // 根据isTextEditable(),这块应该是针对EditText的处理（从下面弹键盘的操作也可以看出）.
-            // 这里负责弹键盘和Editor.onTouchUpEvent()
-            /*
-             * 问题：
-             *
-             * 1.哪些情况会导致键盘弹不起来？
-             *   看这里的代码，如果是EditText，isTextEditable和textIsSelectable应该都是true，只要判断
-             *   touchIsFinished==true，应该就可以正常弹出键盘。
-             *
-             * 2.光标错位如果是因为键盘实际没弹起来，但是计算光标位置的时候计算了键盘高度，需要这个计算过程
-             *   是在哪里完成的？但感觉应该不是，因为cursor的位置是直接通过TextView的字符位置计算的，有可能
-             *   就是最后计算的位置是对的，但是没有刷新。目前来看问题应该不是没有刷新位置，而是位置计算的有问题。
-             */
+            //
             if (touchIsFinished && (isTextEditable() || textIsSelectable)) {
                 // Show the IME, except when selecting in read-only text.
                 final InputMethodManager imm = InputMethodManager.peekInstance();
                 viewClicked(imm);
                 if (isTextEditable() && mEditor.mShowSoftInputOnFocus && imm != null) {
                     imm.showSoftInput(this, 0);
-                    imm.isActive()
+                    imm.isActive();
                 }
 
                 // The above condition ensures that the mEditor is not null

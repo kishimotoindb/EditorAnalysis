@@ -1806,16 +1806,27 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
         return isLaidOut();
     }
 
+    // 创建和初始化FloatingActionMode
     private ActionMode createFloatingActionMode(
             View originatingView, ActionMode.Callback2 callback) {
         if (mFloatingActionMode != null) {
             mFloatingActionMode.finish();
         }
+        /*
+         * 1.关闭floatingToolbarPopupWindow
+         * 2.清空originatingView
+         * 3.注销originatingView的onPreDrawListener
+         */
         cleanupFloatingActionModeViews();
+
         mFloatingToolbar = new FloatingToolbar(mContext, mWindow);
         final FloatingActionMode mode =
                 new FloatingActionMode(mContext, callback, originatingView, mFloatingToolbar);
         mFloatingActionModeOriginatingView = originatingView;
+        /*
+         * handleView和这里的floatingToolbarPopup均是通过onPreDrawListener这个监听更新自身位置的坐标，
+         * 以提供给下次更新位置的时候使用。
+         */
         mFloatingToolbarPreDrawListener =
             new ViewTreeObserver.OnPreDrawListener() {
                 @Override

@@ -178,6 +178,9 @@ public class Editor {
      * 2.actions on an insertion cursor are triggered：双击的时候，cursor上也会有一个弹框
      * 3.insertion cursor出现的时候，不一定有popupWindow弹出
      * 所以说只有在popUpWindow展示出来的时候，才会有ActionMode。并不是cursor出现了，ActionMode就不为空。
+     *
+     * 这两个变量都是在有光标以后才被赋值为true的，所以文本中如果还没有出现过光标，或者还没有开启过ActionMode
+     * 的情况下，这两个值都是false。
      */
     private ActionMode mTextActionMode;
     private boolean mInsertionControllerEnabled;
@@ -227,8 +230,10 @@ public class Editor {
     boolean mDiscardNextActionUp;
     /*
      * 目前只有TextView的cancelLongPress()方法中被设置为true。
-     * 从语义来说，是指Editor自己无视up事件，至于TextView处理不处理我不管。所以cancelLongPress方法中将该
+     * （这段为错误的理解）从语义来说，是指Editor自己无视up事件，至于TextView处理不处理我不管。所以cancelLongPress方法中将该
      * 变量设置为true，意思就是没有处理长按事件，所以up事件对我来说没有用，textView你该怎么处理怎么处理。
+     *
+     *
      */
     boolean mIgnoreActionUpEvent;
 
@@ -1119,12 +1124,24 @@ public class Editor {
 
     public boolean performLongClick(boolean handled) {
         // Long press in empty space moves cursor and starts the insertion action mode.
+        /*
+         * 1.在文本中没有光标、没有开启任何ActionMode的时候，mInsertionControllerEnabled和
+         *
+         */
         if (!handled && !isPositionOnText(mLastDownPositionX, mLastDownPositionY)
                 && mInsertionControllerEnabled) {
             final int offset = mTextView.getOffsetForPosition(mLastDownPositionX,
                     mLastDownPositionY);
+            /*
+             * 开启InsertionActionMode的步骤：
+             * 1.设置selection
+             * 2.显示handleView
+             * 3.开启insertionActionMode：1)全局进入FloatingActionMode模式 2)显示FloatingToolbarPopupWindow
+             */
             Selection.setSelection((Spannable) mTextView.getText(), offset);
+            // handleView都是在
             getInsertionController().show();
+            // 在TextView.onTouchEvent()的up事件中真正开启ActionMode
             mIsInsertionActionModeStartPending = true;
             handled = true;
             MetricsLogger.action(
@@ -2079,6 +2096,8 @@ public class Editor {
                 new TextActionModeCallback(false /* hasSelection */);
         mTextActionMode = mTextView.startActionMode(
                 actionModeCallback, ActionMode.TYPE_FLOATING);
+        // 估计修bug加的，正常流程是先显示InsertHandleView，然后调用startInsertionActionMode方法，
+        // 这里并不需要再调用一次handleView的展示代码。
         if (mTextActionMode != null && getInsertionController() != null) {
             getInsertionController().show();
         }
@@ -3106,6 +3125,9 @@ public class Editor {
 
     // 监听当前TextView的位置（左上角的坐标），在TextView每次绘制之前，更新一下这个类里保存的TextView
     // 坐标。然后当位置发生变化时，触发listener。
+    /*
+     * 在TextView每次绘制之前，首先更新TextView的位置，然后更新handleView的位置
+     */
     private class PositionListener implements ViewTreeObserver.OnPreDrawListener {
         // 3 handles
         // 3 ActionPopup [replace, suggestion, easyedit] (suggestionsPopup first hides the others)
@@ -3187,6 +3209,7 @@ public class Editor {
             updatePosition();
 
             for (int i = 0; i < MAXIMUM_NUMBER_OF_LISTENERS; i++) {
+                // mPositionHasChanged指的是textView
                 if (mPositionHasChanged || mScrollHasChanged || mCanMove[i]) {
                     TextViewPositionListener positionListener = mPositionListeners[i];
                     if (positionListener != null) {
@@ -3200,7 +3223,7 @@ public class Editor {
             return true;
         }
 
-        // 核心方法
+        // update的是TextView的position
         private void updatePosition() {
             mTextView.getLocationInWindow(mTempCoords);
 
@@ -4080,6 +4103,7 @@ public class Editor {
 
         @Override
         public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            // 这个方法内部就是打印了一个log
             getSelectionActionModeHelper().onSelectionAction();
 
             if (mProcessTextIntentActionsHandler.performMenuItemAction(item)) {
@@ -4133,6 +4157,9 @@ public class Editor {
                         mTextView.getSelectionEnd());
             }
 
+            // 从这可以看出FloatingToolbarPopupWindow的开启并不是在Editor里，所以在actionMode销毁的时候
+            // 只需要将SelectionHandleView隐藏即可。insertionHandleView因为会自动消失，所以不需要在这里
+            // 隐藏。
             if (mSelectionModifierCursorController != null) {
                 mSelectionModifierCursorController.hide();
             }
@@ -4445,6 +4472,14 @@ public class Editor {
             return Math.max(mDrawable.getIntrinsicHeight(), mMinSize);
         }
 
+        /*
+         * handleView的show流程：
+         * 1.注册TextView的onPreDrawListener监听
+         * 2.在TextView每次绘制之前，首先更新textView的位置，然后根据selection更新handleView的坐标，
+         * 最后根据上面两者的坐标实际更新handleView的位置。
+         *
+         * 所以说handleView的show方法只与handleView自身的展示有关系，与其他都无关。
+         */
         public void show() {
             if (isShowing()) return;
 
@@ -4510,7 +4545,18 @@ public class Editor {
          * when If the parent has been scrolled, for example.
          */
         /*
-         * 更新Selection和popUpWindow的坐标
+         * 主要是当Selection发生变化的时候，更新handleView的位置，即handleView的positionX和positionY.
+         *
+         * 位置变化的链条是：
+         * 手指点击位置（down事件） -> selection变化 -> handleView变化
+         *
+         * offset变化的时候，也会同步更新Selection。
+         *
+         * 1.这里的cursor指的就是相应的handleView。比如selectionStartHandleView，cursorOffset指的就是
+         * startHandleView所在位置的offset，即Selection.getSelectionStart()方法返回的offset
+         *
+         * update the position of HandleView according to the current selection
+         * 把handleView放到当前cursor的位置，但是没有真的放，只是把坐标更新了。
          */
         protected void positionAtCursorOffset(int offset, boolean forceUpdatePosition) {
             // A HandleView relies on the layout, which may be nulled by external methods
@@ -4559,6 +4605,12 @@ public class Editor {
         public void updatePosition(int parentPositionX, int parentPositionY,
                 boolean parentPositionChanged, boolean parentScrolled) {
             positionAtCursorOffset(getCurrentCursorOffset(), parentScrolled);
+            /*
+             * 1.mPositionHasChanged指的是handleView的位置是否发生改变，这个值由上面刚刚调用的方法
+             * positionAtCursorOffset()决定。
+             * 2.如果TextView位置或者handleView位置发生了变化，在下面的代码中，真正更新handleView在屏幕
+             * 上的位置
+             */
             if (parentPositionChanged || mPositionHasChanged) {
                 if (mIsDragging) {
                     // Update touchToWindow offset in case of parent scrolling while dragging
@@ -4723,7 +4775,7 @@ public class Editor {
                             || isCursorInsideEasyCorrectionSpan())) {
                 mTextView.removeCallbacks(mInsertionActionModeRunnable);
             }
-
+            // todo 这里什么情况下会调用？
             // Prepare and schedule the single tap runnable to run exactly after the double tap
             // timeout has passed.
             if ((mTapState != TAP_STATE_DOUBLE_TAP) && (mTapState != TAP_STATE_TRIPLE_CLICK)
