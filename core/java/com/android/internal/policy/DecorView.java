@@ -858,6 +858,15 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
         return startActionMode(this, callback, type);
     }
 
+    /*
+     * 1.ActionMode的弹框是一个全局的行为。
+     * 2.Editor的弹框就是ActionMode的弹框，所以这个弹框的开启和关闭也是一个全局行为，由DecorView控制。所以
+     * Editor的弹框如果需要自定义样式，并且不想影响ActionMode的全局弹框样式，就不能通过修改FloatingToolbarPopup
+     * 来实现。
+     * 3.Editor的弹框要在自身内实现，并且不能触发ActionMode，因为一旦触发ActionMode，FloatingToolbarPopup
+     * 就会弹出来。callback.onCreateActionMode()返回false的话，可能可以在触发全局的ActionMode的情况下，不
+     * 弹出FloatingToolbarPopup。
+     */
     private ActionMode startActionMode(
             View originatingView, ActionMode.Callback callback, int type) {
         ActionMode.Callback2 wrappedCallback = new ActionModeCallback2Wrapper(callback);
@@ -889,6 +898,8 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
             }
         } else {
             mode = createActionMode(type, wrappedCallback, originatingView);
+            // Editor的onCreateActionMode：在menu中添加item。所以Editor弹框中展示的item，还是自己
+            // 添加的。
             if (mode != null && wrappedCallback.onCreateActionMode(mode, mode.getMenu())) {
                 setHandledActionMode(mode);
             } else {
@@ -1840,6 +1851,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
 
     private void setHandledFloatingActionMode(ActionMode mode) {
         mFloatingActionMode = mode;
+        // 开启了FloatingToolbarPopup
         mFloatingActionMode.invalidate();  // Will show the floating toolbar if necessary.
         mFloatingActionModeOriginatingView.getViewTreeObserver()
             .addOnPreDrawListener(mFloatingToolbarPreDrawListener);
