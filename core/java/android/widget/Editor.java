@@ -1156,6 +1156,19 @@ public class Editor {
      * 所以正常来说，如果TextView触发了contextMenu，handled==true，那么到Editor的performLongClick
      * 方法时，下面的几个操作均不会被执行。
      *
+     * 关闭各种ActionMode操作的时机说明：
+     * 1.原生的逻辑里，在ActionCall.onDestroyActionMode()回调中会关闭相应的SelectionHandleView，并且
+     *   复位selection。然后在各个开启ActionMode的方法中，也会再次关闭之前的ActionMode。
+     * 2.长按事件：
+     *  长按事件发生的情况下关闭某个ActionMode，都是在开启其他ActionMode的时候完成的。
+     *  1)开启InsertionActionMode时，关闭selectionHandleView是在insertHandleView的show方法里，关闭
+     *    SelectionActionMode是在startInsertionActionMode()方法中。
+     *  2)开启startDragAndDrop，本身会调用stopActionMode()方法关闭之前的ActionMode，然后通过
+     *    ActionModeCallBack.onDestroyActionMode()回调关闭SelectionHandleView。
+     *  3)
+     *
+     * 3.单击、双击事件：
+     *
      */
     public boolean performLongClick(boolean handled) {
 
@@ -1163,7 +1176,8 @@ public class Editor {
         // Long press in empty space moves cursor and starts the insertion action mode.
         /*
          * 1.在文本中没有光标、没有开启任何ActionMode的时候，mInsertionControllerEnabled和
-         *
+         * 2.开启InsertionActionMode时，关闭selectionHandleView是在insertHandleView的show方法里，关闭
+         *   SelectionActionMode是在startInsertionActionMode()方法中。
          */
         if (!handled && !isPositionOnText(mLastDownPositionX, mLastDownPositionY)
                 && mInsertionControllerEnabled) {
