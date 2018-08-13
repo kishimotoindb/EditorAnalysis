@@ -223,11 +223,27 @@ public class Editor {
     int mInputType = EditorInfo.TYPE_NULL;
 
     /*
+     * 下面这两个变量虽然表示的均是要在onTouchEvent()中忽略对UP的事件的处理，但是导致忽略的原因不同，
+     * mDiscardNextActionUp：是因为执行了longclick，所以不再处理UP事件。
+     * mIgnoreActionUpEvent：是因为正在拖拽文字，所以不应该处理UP事件。
+     * 总的来说，应该是在UP事件处理的过程中，做了和longClick和拖拽相排斥的操作，所以以上两种情况下，
+     * 忽略对UP事件的处理。
+     */
+    /*
      * 在TextView的performLongClick()方法中，如果Editor处理了longClick事件，那么 mDiscardNextActionUp
      * 就会被置为true。所以说 mDiscardNextActionUp 用在Editor对longClick的处理。
      * 从语义上来说，是Editor自己处理了UP事件之后就主动丢弃up事件，不让TextView处理。
      */
+    // TextView.performLongClick()方法中，如果处理了longclick事件，即handled=true，
+    // mDiscardNextActionUp这个变量会被设置为true。应该是说明已经执行了longclick，就
+    // 不要再处理up事件了。
     boolean mDiscardNextActionUp;
+    // 这个变量是在拖拽文字的时候使用，表示拖拽操作需要忽略UP事件。
+    // 两种情况：
+    // 1.performLongClick里的选中文字操作会调用SelectionCursorController.enterDrag()->mTextView.cancelLongPress()
+    // 2.应该有地方直接调用了SelectionCursorController.enterDrag()
+    // 第1种情况下，mDiscardNextActionUp和mIgnoreActionUpEvent都会是true，因为先执行的长按，长按
+    // 触发了拖拽。
     /*
      * 目前只有TextView的cancelLongPress()方法中被设置为true。
      * （这段为错误的理解）从语义来说，是指Editor自己无视up事件，至于TextView处理不处理我不管。所以cancelLongPress方法中将该
@@ -881,6 +897,10 @@ public class Editor {
      * successfully performed.
      */
     /*
+     * 核心的操作就是：
+     * Selection.setSelection((Spannable) mTextView.getText(), selectionStart, selectionEnd);
+     */
+    /*
      * 1.全选
      * 2.选中第一个URL
      * 3.选中一个单词
@@ -894,6 +914,9 @@ public class Editor {
             return mTextView.selectAllText();
         }
 
+        // lastTouchOffsets是在onTouchEvent方法中的down事件来临时获取的，selectCurrentWord是在
+        // Editor.performLongClick()方法中调用的，此时一定是down事件已经处理完了，lastTouchOffsets
+        // 已经可以正确对应上手指所点文字的偏移量
         long lastTouchOffsets = getLastTouchOffsets();
         final int minOffset = TextUtils.unpackRangeStartFromLong(lastTouchOffsets);
         final int maxOffset = TextUtils.unpackRangeEndFromLong(lastTouchOffsets);
@@ -904,6 +927,10 @@ public class Editor {
 
         int selectionStart, selectionEnd;
 
+        /*
+         * 点中的位置如果是个URL，那么就选中URL所在的文字范围；如果没有URL，那么久选中所在位置的文字
+         *
+         */
         // If a URLSpan (web address, email, phone...) is found at that position, select it.
         URLSpan[] urlSpans =
                 ((Spanned) mTextView.getText()).getSpans(minOffset, maxOffset, URLSpan.class);
@@ -1114,6 +1141,7 @@ public class Editor {
         CharSequence selectedText = mTextView.getTransformedText(start, end);
         ClipData data = ClipData.newPlainText(null, selectedText);
         DragLocalState localState = new DragLocalState(mTextView, start, end);
+        // View类的方法，拖动的是选中的文字。这个操作和移动光标把手扩大缩小文字选择范围没有关系
         mTextView.startDragAndDrop(data, getTextThumbnailBuilder(start, end), localState,
                 View.DRAG_FLAG_GLOBAL);
         stopTextActionMode();
@@ -1122,7 +1150,16 @@ public class Editor {
         }
     }
 
+    /*
+     * 这个方法的执行是在TextView的performLongClick方法之后，这里的参数handled表示TextView是否处理
+     * 了事件。
+     * 所以正常来说，如果TextView触发了contextMenu，handled==true，那么到Editor的performLongClick
+     * 方法时，下面的几个操作均不会被执行。
+     *
+     */
     public boolean performLongClick(boolean handled) {
+
+        // 没点到文字上，那就触发插入光标
         // Long press in empty space moves cursor and starts the insertion action mode.
         /*
          * 1.在文本中没有光标、没有开启任何ActionMode的时候，mInsertionControllerEnabled和
@@ -1150,16 +1187,23 @@ public class Editor {
                     android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_OTHER);
         }
 
+        // 已经选中文字的情况下，点到文字上，有个拖拽的效果。但是这个不是扩大缩小文字范围的那个操作，
+        // 扩大缩小文字范围需要拖动的是handleView
         if (!handled && mTextActionMode != null) {
             if (touchPositionIsInSelection()) {
+                // 点到当前已选中的文字上，有一个拖拽文字的效果
                 startDragAndDrop();
                 MetricsLogger.action(
                         mTextView.getContext(),
                         MetricsEvent.TEXT_LONGPRESS,
                         android.widget.TextViewMetrics.SUBTYPE_LONG_PRESS_DRAG_AND_DROP);
             } else {
+                // 没有点到当前已选中的文字上，那么重新选择其他文字
                 stopTextActionMode();
+
+                // 选中文字的 <关键性> 操作
                 selectCurrentWordAndStartDrag();
+
                 MetricsLogger.action(
                         mTextView.getContext(),
                         MetricsEvent.TEXT_LONGPRESS,
@@ -1169,6 +1213,7 @@ public class Editor {
         }
 
         // Start a new selection
+        // 如果是首次点到了文字，那么就选中文字。
         if (!handled) {
             handled = selectCurrentWordAndStartDrag();
             if (handled) {
@@ -1197,6 +1242,7 @@ public class Editor {
             int selStart = mTextView.getSelectionStart();
             int selEnd = mTextView.getSelectionEnd();
 
+            // 这里其实对应的效果就是：当点到输入框时，默认将输入框中文字全选，但是又不弹出复制粘贴框
             // SelectAllOnFocus fields are highlighted and not selected. Do not start text selection
             // mode for these, unless there was a specific selection already started.
             final boolean isFocusHighlighted = mSelectAllOnFocus && selStart == 0
@@ -2082,10 +2128,14 @@ public class Editor {
     /**
      * Start an Insertion action mode.
      */
+    /*
+     * startActionMode不会触发光标，但是这个方法里直接调用了触发光标的方法
+     */
     void startInsertionActionMode() {
         if (mInsertionActionModeRunnable != null) {
             mTextView.removeCallbacks(mInsertionActionModeRunnable);
         }
+        // 现在的屏幕一般应该都不会出现返回true的情况
         if (extractedTextModeWillBeStarted()) {
             return;
         }
@@ -2161,6 +2211,7 @@ public class Editor {
         if (extractedTextModeWillBeStarted()) {
             return false;
         }
+        // 判断TextView是否支持选中文字，或者是否可以获取焦点。如果不能，那么久不选中文字。
         if (!checkField()) {
             return false;
         }
@@ -2175,6 +2226,8 @@ public class Editor {
          * restartActionModeOnNextRefresh=true;
          * preserve selection
          */
+        // 会调用 mTextView.cancelLongPress();
+        // 这里面只是展示curosr的逻辑
         /*
          * 1.CursorController可能只与Cursor进行交互，不控制ActionMode，ActionMode与
          *   Cursor的控制是并行的，但是又是独立各自控制各自的。
@@ -2215,6 +2268,7 @@ public class Editor {
             return false;
         }
 
+    // 所有ActionMode(insertion, selection, text_link)均对应的是ActionMode.TYPE_FLOATING
         ActionMode.Callback actionModeCallback =
                 new TextActionModeCallback(true /* hasSelection */);
         mTextActionMode = mTextView.startActionMode(actionModeCallback, ActionMode.TYPE_FLOATING);
@@ -2317,15 +2371,36 @@ public class Editor {
         return false;
     }
 
+    // TextView的"单击"事件会调用这个方法
     void onTouchUpEvent(MotionEvent event) {
+        /*
+         * resetSelection只针对已经有文字被选中的情景。
+         * 如果这个“单击”点在了当前已选文字范围内，会在范围内重新选中一个current word。如果选中了，就直接return。
+         * 但是貌似试验了一下，目前miui的Editor好像不会有什么效果。
+         */
         if (getSelectionActionModeHelper().resetSelection(
                 getTextView().getOffsetForPosition(event.getX(), event.getY()))) {
             return;
         }
 
         boolean selectAllGotFocus = mSelectAllOnFocus && mTextView.didTouchFocusSelect();
+
+        /*
+         * 1.insertionCursorController.hide()
+         * 2.SpanController.hide()
+         *
+         * 第一个操作隐藏了insertionCursor，但是并没有隐藏SelectionModifierCursorController ,
+         * 所以选中文字然后点击其他文字位置，选中光标消失变为闪烁的光标，这个现象应该不是通过下面这个方法控制的。
+         *
+         * 这里隐藏了插入光标，但是在下面2463行，有显示了光标
+         */
         hideCursorAndSpanControllers();
+        /* 从这里也可以看出，actionMode和cursor的显示是独立的
+         * 能够执行到onTouchUpEvent方法，说明至少是一个单击事件，所以应该取消ActionMode，恢复正常模式。
+         * 同时因为原生ActionMode里包含了弹框的逻辑，所以stopActionMode会将弹框关掉
+         */
         stopTextActionMode();
+
         CharSequence text = mTextView.getText();
         if (!selectAllGotFocus && text.length() > 0) {
             // Move cursor
@@ -2365,8 +2440,11 @@ public class Editor {
         }
     }
 
+    // 正常来说，stopTextActionMode应该是清空Selection，这个方法应该是在stop的时候，保留Selection，
+    // 以便在下次startTextActionMode正常显示选中的文字
     private void stopTextActionModeWithPreservingSelection() {
         if (mTextActionMode != null) {
+            // 这个标志应该就是告诉系统，下次refresh的时候，重启actionMode
             mRestartActionModeOnNextRefresh = true;
         }
         mPreserveSelection = true;
@@ -3534,6 +3612,7 @@ public class Editor {
         }
     }
 
+    // 这个弹框好象是在更正文字的时候使用
     @VisibleForTesting
     public class SuggestionsPopupWindow extends PinnedPopupWindow implements OnItemClickListener {
         private static final int MAX_NUMBER_SUGGESTIONS = SuggestionSpan.SUGGESTIONS_MAX_SIZE;
@@ -5360,6 +5439,8 @@ public class Editor {
         public boolean isActive();
     }
 
+    // InsertionPoint指的是Editor弹出的单个的插入光标，因为这个光标的图形是底部有一个圆，所以叫
+    // insertion-插入，point-圆。应该是因为这个原因起名如此。
     private class InsertionPointCursorController implements CursorController {
         private InsertionHandleView mHandle;
 
@@ -5504,6 +5585,7 @@ public class Editor {
             if (mEndHandle != null) mEndHandle.hide();
         }
 
+        // 核心的显示方法
         public void enterDrag(int dragAcceleratorMode) {
             // Just need to init the handles / hide insertion cursor.
             // HandleView的show方法，就是注册一个textView的onPreDraw的回调，等待TextView下一次绘制
@@ -5525,12 +5607,18 @@ public class Editor {
             // the user to continue dragging across the screen to select text; TextView will
             // scroll as necessary.
             mTextView.getParent().requestDisallowInterceptTouchEvent(true);
+            // 这句代码在performlongclick调用enterDrag的时候，应该是没有效果的，因为已经执行了longClick
+            // 事件。
             mTextView.cancelLongPress();
         }
 
         public void onTouchEvent(MotionEvent event) {
             // This is done even when the View does not have focus, so that long presses can start
             // selection and tap can move cursor from this tap position.
+            /*
+             * focus是在UP事件时request的，所以在onTouchEvent的全流程中，的确可以先响应LongClick，然后再
+             * 获取焦点。
+             */
             final float eventX = event.getX();
             final float eventY = event.getY();
             final boolean isMouse = event.isFromSource(InputDevice.SOURCE_MOUSE);
@@ -5540,6 +5628,7 @@ public class Editor {
                         // Prevent duplicating the selection handles until the mode starts.
                         hide();
                     } else {
+                        // 每次down事件的时候记录手指点中的文字位置
                         // Remember finger down position, to be able to start selection from there.
                         mMinTouchOffset = mMaxTouchOffset = mTextView.getOffsetForPosition(
                                 eventX, eventY);
