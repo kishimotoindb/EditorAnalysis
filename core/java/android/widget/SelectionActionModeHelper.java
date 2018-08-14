@@ -105,6 +105,8 @@ final class SelectionActionModeHelper {
         mSelectionTracker.onSelectionAction(mTextClassificationHelper.getSelectionTag());
     }
 
+    // 根据mSelectionTracker.resetSelection()方法的注释，resetSelection指的是将reset smartSelection to
+    // base selection，所以这里的resetSelection与将selection清除没有任何关系。
     public boolean resetSelection(int textIndex) {
         if (mSelectionTracker.resetSelection(
                 textIndex, mEditor, mTextClassificationHelper.getSelectionTag())) {
@@ -300,12 +302,15 @@ final class SelectionActionModeHelper {
          */
         public boolean resetSelection(int textIndex, Editor editor, String logTag) {
             final CharSequence text = editor.getTextView().getText();
+            // mMultiSelection间接表明当前是smartSelection。smartSelection的时候，是可以在已选中文字中重新
+            // 选中某个文字的。
             if (mMultiSelection
                     && textIndex >= mSelectionStart && textIndex <= mSelectionEnd
                     && text instanceof Spannable) {
                 // Only allow a reset once.
                 resetSelectionFlags();
                 mClassifier.logEvent(logTag, LOG_EVENT_MULTI_SELECTION_RESET);
+                // editor.selectCurrentWord()的实现逻辑，没有使用TextClassifier
                 return editor.selectCurrentWord();
             }
             return false;

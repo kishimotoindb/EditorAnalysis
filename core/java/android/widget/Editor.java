@@ -244,13 +244,6 @@ public class Editor {
     // 2.应该有地方直接调用了SelectionCursorController.enterDrag()
     // 第1种情况下，mDiscardNextActionUp和mIgnoreActionUpEvent都会是true，因为先执行的长按，长按
     // 触发了拖拽。
-    /*
-     * 目前只有TextView的cancelLongPress()方法中被设置为true。
-     * （这段为错误的理解）从语义来说，是指Editor自己无视up事件，至于TextView处理不处理我不管。所以cancelLongPress方法中将该
-     * 变量设置为true，意思就是没有处理长按事件，所以up事件对我来说没有用，textView你该怎么处理怎么处理。
-     *
-     *
-     */
     boolean mIgnoreActionUpEvent;
 
     long mShowCursor;
@@ -1157,7 +1150,7 @@ public class Editor {
      * 方法时，下面的几个操作均不会被执行。
      *
      * 关闭各种ActionMode操作的时机说明：
-     * 1.原生的逻辑里，在ActionCall.onDestroyActionMode()回调中会关闭相应的SelectionHandleView，并且
+     * 1.原生的逻辑里，stopActionMode后，会在ActionCall.onDestroyActionMode()回调中关闭相应的SelectionHandleView，并且
      *   复位selection。然后在各个开启ActionMode的方法中，也会再次关闭之前的ActionMode。
      * 2.长按事件：
      *  长按事件发生的情况下关闭某个ActionMode，都是在开启其他ActionMode的时候完成的。
@@ -1165,7 +1158,11 @@ public class Editor {
      *    SelectionActionMode是在startInsertionActionMode()方法中。
      *  2)开启startDragAndDrop，本身会调用stopActionMode()方法关闭之前的ActionMode，然后通过
      *    ActionModeCallBack.onDestroyActionMode()回调关闭SelectionHandleView。
-     *  3)
+     *  3)第二个if里的else中，重新选中文字：
+     *      a.如果在这步之前开启的是SelectionActionMode的话，那么stopActionMode会关闭之前的selectionHandleView
+     *        和ActionMode。
+     *      b.如果在这步之前开启的是InsertionActionMode的话，stopActionMode会关闭ActionMode，但是现在暂时
+     *        不清楚在哪里关闭的insertionHandleView。
      *
      * 3.单击、双击事件：
      *
@@ -2386,12 +2383,12 @@ public class Editor {
     }
 
     // TextView的"单击"事件会调用这个方法
+    /*
+     * TextView的单击事件对Editor的复位操作说明：
+     * 关闭所有handleView、弹框、ActionMode，然后最后在光标位置展示insertionHandleView
+     */
     void onTouchUpEvent(MotionEvent event) {
-        /*
-         * resetSelection只针对已经有文字被选中的情景。
-         * 如果这个“单击”点在了当前已选文字范围内，会在范围内重新选中一个current word。如果选中了，就直接return。
-         * 但是貌似试验了一下，目前miui的Editor好像不会有什么效果。
-         */
+        // reset smart selection to base selection
         if (getSelectionActionModeHelper().resetSelection(
                 getTextView().getOffsetForPosition(event.getX(), event.getY()))) {
             return;
@@ -2401,12 +2398,9 @@ public class Editor {
 
         /*
          * 1.insertionCursorController.hide()
+         *   隐藏了insertionCursor
          * 2.SpanController.hide()
-         *
-         * 第一个操作隐藏了insertionCursor，但是并没有隐藏SelectionModifierCursorController ,
-         * 所以选中文字然后点击其他文字位置，选中光标消失变为闪烁的光标，这个现象应该不是通过下面这个方法控制的。
-         *
-         * 这里隐藏了插入光标，但是在下面2463行，有显示了光标
+         *   这里隐藏了插入光标，但是在下面2463行，又显示了光标
          */
         hideCursorAndSpanControllers();
         /* 从这里也可以看出，actionMode和cursor的显示是独立的
@@ -2441,6 +2435,7 @@ public class Editor {
                     mTextView.postDelayed(mShowSuggestionRunnable,
                             ViewConfiguration.getDoubleTapTimeout());
                 } else if (hasInsertionController()) {
+                    // 单击事件抬起手指的时候，会单独展示一会儿insertionHandleView
                     getInsertionController().show();
                 }
             }
@@ -5621,8 +5616,7 @@ public class Editor {
             // the user to continue dragging across the screen to select text; TextView will
             // scroll as necessary.
             mTextView.getParent().requestDisallowInterceptTouchEvent(true);
-            // 这句代码在performlongclick调用enterDrag的时候，应该是没有效果的，因为已经执行了longClick
-            // 事件。
+            // 目的应该不是取消长按的runnable，而是取消tap的runnable
             mTextView.cancelLongPress();
         }
 

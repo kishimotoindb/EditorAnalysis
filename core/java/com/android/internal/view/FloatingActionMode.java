@@ -253,6 +253,7 @@ public final class FloatingActionMode extends ActionMode {
     @Override
     public void finish() {
         reset();
+        // mCallback是DecorView中对Editor的callback的wrapper，wrapper调用了Activity.onActionModeFinished()
         mCallback.onDestroyActionMode(this);
     }
 

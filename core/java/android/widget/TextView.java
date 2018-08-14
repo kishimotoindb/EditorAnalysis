@@ -9686,6 +9686,9 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
              *
              * 1）既然是全程并行的，看看它全程都做了什么？
              * 最主要的可能就是调用了SelectionController的onTouchEvent()
+             * 2) Editor的onTouchEvent()方法没有触发ActionMode的逻辑，关于触发ActionMode的逻辑全在
+             *    Editor.performLongClick()方法中。说实话，感觉Editor的onTouchEvent()方法没有干什么，
+             *    触发ActionMode之后关闭ActionMode的逻辑，也不在Editor.onTouchEvent()方法中。
              */
             mEditor.onTouchEvent(event);
 
@@ -9693,16 +9696,15 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
              * 问题：
              *
              * 2) 这个controller什么时候被赋值，什么时候又被置空？
+             *    第一次用到的时候就会初始化
              * 3) 什么时候这里就开始返回true，TextView的onTouchEvent就不执行了？
-             * 一旦SelectionMode开启了，controller!=null，并且会进入一种AcceleratorMode，所以就不好i再走
-             * 后面的代码。
+             *    a.一旦SelectionMode开启了，controller就不为null了。
+             *    b.isDragAcceleratorActive()在down和Up事件之间，是active，一旦手指离开屏幕，就是inactive的
+             *      了，所以第二次触发长按的时候，可以走下面super的代码。
              */
             if (mEditor.mSelectionModifierCursorController != null
                     // Enabled after long pressing or double tapping. WordBaseDrag
                     && mEditor.mSelectionModifierCursorController.isDragAcceleratorActive()) {
-                // 也就是说如果长按或者double tapping之后，这里就直接返回true了，等于up事件TextView就没有再
-                // 处理了。所以说如果发生了长按，up事件的时候还有处理，那这个处理一定是Editor的onTouchEvent
-                // 完成的。
                 return true;
             }
         }
@@ -9751,9 +9753,9 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
         }
 
         /*
-         * （有些错误的理解，不全面）touchIsFinish应该是针对TextView自己的处理，说明TextView处理了从Down事件一直到UP事件，没有事件被
+         * touchIsFinish应该是针对TextView自己的处理，说明TextView处理了从Down事件一直到UP事件，没有事件被
          * Editor拦截。
-         * （有些错误的理解，不全面）touchIsFinish描述的是TextView自身的事件处理是否完整。
+         * touchIsFinish描述的是TextView自身的事件处理是否完整。
          *
          * 问题：
          *
@@ -9801,7 +9803,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
                 }
             }
 
-            //
             if (touchIsFinished && (isTextEditable() || textIsSelectable)) {
                 // Show the IME, except when selecting in read-only text.
                 final InputMethodManager imm = InputMethodManager.peekInstance();
