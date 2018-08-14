@@ -135,6 +135,10 @@ import java.util.List;
  *
  * @hide
  */
+/*
+ * 开启ActionMode：onTouchEvent()和performLongClick()方法中
+ * 关闭ActionMode：onTouchUpEvent()和开启ActionMode时。
+ */
 public class Editor {
     private static final String TAG = "Editor";
     private static final boolean DEBUG_UNDO = false;
@@ -224,9 +228,9 @@ public class Editor {
 
     /*
      * 下面这两个变量虽然表示的均是要在onTouchEvent()中忽略对UP的事件的处理，但是导致忽略的原因不同，
-     * mDiscardNextActionUp：是因为执行了longclick，所以不再处理UP事件。
+     * mDiscardNextActionUp：是因为执行了longclick或者doubleTap,需要弹框，所以不再处理UP事件。
      * mIgnoreActionUpEvent：是因为正在拖拽文字，所以不应该处理UP事件。
-     * 总的来说，应该是在UP事件处理的过程中，做了和longClick和拖拽相排斥的操作，所以以上两种情况下，
+     * 总的来说，应该是在UP事件处理的过程中，做了和longClick、doubleTap和拖拽相排斥的操作，所以以上两种情况下，
      * 忽略对UP事件的处理。
      */
     /*
@@ -346,9 +350,8 @@ public class Editor {
      * 1. InsertionActionMode是在Editor的performLongClick方法中设置为true，
      * 然后在TextView的onTouchEvent()方法的Up事件中开启InsertionActionMode。
      *
-     * 2. SelectionActionMode是在Editor的performLongClick方法中将mRestartActionModeOnNextRefresh
-     * 设置为true，然后在Editor的onTouchEvent()中的SelectionModifierCursorController的
-     * onTouchEvent方法中开启SelectionActionMode。
+     * 2. SelectionActionMode是在Editor中的SelectionModifierCursorController中的
+     * onTouchEvent方法中处理UP事件时开启的SelectionActionMode。
      *
      * 两个模式均是通过View的startActionMode()方法开启ActionMode模式，并且开启ActionMode
      * 的回调也是使用同一个TextActionModeCallBack。
@@ -1494,25 +1497,19 @@ public class Editor {
          *
          * 问题：
          * 那么controller是一直不为空，还是和ActionMode是一样的？
-         *
          * -------------------------------------------------------------------------------
          * Editor对弹框的控制，感觉主要依靠SelectionController和insertionController。(应该是不对的)
-         *
          * -------------------------------------------------------------------------------
-         *
          * 问题：
          * 这两个controller各自负责的哪个光标？
          * Selection负责的是选择文字两端的一对光标？
          * insertion负责的是在文字中间一直闪烁的光标，还是展示一会儿就会消失的底部带实心圆的光标？
-         *
-         *
-         *
          * -------------------------------------------------------------------------------
          * onTouchEvent方法中，只涉及到了SelectionController。在performLongClick中，涉及到了
          * insertionController。
-         *
-         *
-         *
+         * -------------------------------------------------------------------------------
+         * 既然Editor的onTouchEvent()方法是在TextView.onTouchEvent()中并行全程处理touch event的，那么这里
+         * 的selectionController也同样是全程并行处理touch event。
          */
         if (hasSelectionController()) {
             getSelectionController().onTouchEvent(event);
@@ -2213,6 +2210,9 @@ public class Editor {
      * was available and starts a drag.
      *
      * @return true if the drag was started.
+     */
+    /*
+     * stopTextActionModeWithPreservingSelection()中将mRestartActionModeOnNextRefresh设置为true
      */
     private boolean selectCurrentWordAndStartDrag() {
         if (mInsertionActionModeRunnable != null) {
@@ -5620,6 +5620,13 @@ public class Editor {
             mTextView.cancelLongPress();
         }
 
+
+        /*
+         * 主要处理了三件事：
+         * 1.longclick和doubleTap时开启SelectionActionMode，主要是通过up事件里的startSelectionActionModeAsync()
+         *   方法开启ActionMode。
+         * 2.手指移动时更新selection
+         */
         public void onTouchEvent(MotionEvent event) {
             // This is done even when the View does not have focus, so that long presses can start
             // selection and tap can move cursor from this tap position.
@@ -5641,8 +5648,12 @@ public class Editor {
                         mMinTouchOffset = mMaxTouchOffset = mTextView.getOffsetForPosition(
                                 eventX, eventY);
 
+                        // selectionModifierCursorController的onTouchEvent()方法是在Editor的onTouchEvent()
+                        // 方法中的updateTapState()方法之后执行的。
                         // Double tap detection
                         if (mGestureStayedInTapRegion) {
+                            // 因为进入到Editor的onTouchEvent()时，首先更新了tap的状态，所以这里的状态
+                            // TAP_STATE_DOUBLE_TAP，说明当前的点击是就是第二次tap
                             if (mTapState == TAP_STATE_DOUBLE_TAP
                                     || mTapState == TAP_STATE_TRIPLE_CLICK) {
                                 final float deltaX = eventX - mDownPositionX;
